@@ -22,6 +22,7 @@ public:
     QMutex      m_grbllock,m_keypadlock;
     bool        m_doupdate;
     int         m_curtab;
+    QStringList m_transfer;
 
 explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
@@ -49,6 +50,8 @@ private slots:
     void on_paramwriteButton_clicked();
     void on_keypadcom_currentIndexChanged(int index);
     void on_gotoollButton_clicked();
+    void on_paramloadButton_clicked();
+    void on_paramsaveButton_clicked();
 
 private:
     Ui::MainWindow *ui;
@@ -58,6 +61,7 @@ private:
     void    DecodeResponse(QString& txt);
     void    ShowSettings();
     void    GetSettings();
+    void    StartTransfer();
     };
 
 #endif // MAINWINDOW_H

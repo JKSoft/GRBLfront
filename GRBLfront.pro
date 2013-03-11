@@ -24,6 +24,8 @@ HEADERS  += mainwindow.h \
     Serial.h \
     glwidget.h
 
+RC_FILE = GRBLfront.rc
+
 LIBS	+= Advapi32.lib
 
 FORMS    += mainwindow.ui

@@ -15,7 +15,7 @@ QString         grblstate;
 FCoorvec		gpoints;
 DWordvec		blocks;
 int             curline=0,maxline=0;
-double          zsecure=5.;
+double          zsecure=-5.;
 bool            shift=false,moving=false,kill=false;
 
 bool ListPorts(QStringList& ports)

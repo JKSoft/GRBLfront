@@ -171,6 +171,11 @@ void MainWindow::DecodeResponse(QString& qt)
         QTextBlock      li;
 
         if(m_doupdate) {ShowSettings(); m_doupdate = false;}
+        if(m_transfer.size())
+            {
+            m_grblport.Transmitt(m_transfer[0].toLocal8Bit()); m_transfer.removeAt(0);
+            return;
+            }
         for(;;)
             {
             if(curline >= maxline) return;
@@ -377,6 +382,12 @@ void MainWindow::cmdchar(int chr)
     sprintf_s(buf,4,"%c",chr); m_grblport.Transmitt(buf);
     }
 
+void MainWindow::StartTransfer()
+    {
+    if(m_transfer.isEmpty()) return;
+    m_grblport.Transmitt(m_transfer[0].toLocal8Bit()); m_transfer.removeAt(0);
+    }
+
 void MainWindow::on_gloadButton_clicked()
     {
     QString name = QFileDialog::getOpenFileName(this,"G-Code laden","","G-Code (*.tap *.nc)");
@@ -442,6 +453,7 @@ void MainWindow::on_xynullButton_clicked()
     {
     char	buf[_MAX_PATH];
 
+    if(grblstate == "Alarm") return;
     sprintf_s(buf,_MAX_PATH,"G10 L2 P1 X%.*f Y%.*f\n",
         grblset.nkomma,grblpos.mposx,grblset.nkomma,grblpos.mposy);
     m_grblport.Transmitt(buf);
@@ -451,18 +463,21 @@ void MainWindow::on_znullButton_clicked()
     {
     char	buf[_MAX_PATH];
 
+    m_transfer.empty();
+    if(grblstate == "Alarm") return;
     sprintf_s(buf,_MAX_PATH,"G10 L2 P1 Z%.*f\n",grblset.nkomma,grblpos.mposz);
-    m_grblport.Transmitt(buf);
-    while(grblstate != "Idle") Sleep(100);
-    sprintf_s(buf,_MAX_PATH,"G91\nG0 Z%.*f\nG90\n",grblset.nkomma,zsecure);
-    m_grblport.Transmitt(buf);
+    m_transfer.append(buf);
+    sprintf_s(buf,_MAX_PATH,"G91\nG0 Z%.*f\nG90\n",grblset.nkomma,zsecure*(grblset.zdir?-1.:1.));
+    m_transfer.append(buf);
+    StartTransfer();
     }
 
 void MainWindow::on_gonullButton_clicked()
     {
     char	buf[_MAX_PATH];
 
-    sprintf_s(buf,_MAX_PATH,"G0 X0 Y0 Z%.*f\n",grblset.nkomma,zsecure);
+    if(grblstate == "Alarm") return;
+    sprintf_s(buf,_MAX_PATH,"G0 X0 Y0 Z%.*f\n",grblset.nkomma,zsecure*(grblset.zdir?-1.:1.));
     m_grblport.Transmitt(buf);
     }
 
@@ -473,13 +488,45 @@ void MainWindow::on_paramreadButton_clicked()
 
 void MainWindow::on_paramwriteButton_clicked()
     {
-    QStringList ql;
+    GetSettings(); FormatSettings(m_transfer); StartTransfer();
+    }
 
-    GetSettings(); FormatSettings(ql);
-    for(int i=0; i<ql.size(); i++) m_grblport.Transmitt(ql[i].toLocal8Bit());
+void MainWindow::on_paramloadButton_clicked()
+    {
+    QString line,name = QFileDialog::getOpenFileName(this,"Parameter laden","","Parameter (*.prm)");
+    if(name.isEmpty()) return;
+    QFile   fi(name);
+    if(!fi.open(QIODevice::ReadOnly | QIODevice::Text)) return;
+    QTextStream st(&fi);
+    for(;;)
+        {
+        line = fi.readLine();
+        if(line.isEmpty()) break;
+        DecodeResponse(line);
+        }
+    fi.close();
+    ShowSettings(); m_doupdate = false;
+    }
+
+void MainWindow::on_paramsaveButton_clicked()
+    {
+    int         i,l;
+    QStringList ca;
+    QString     name;
+
+    name = QFileDialog::getSaveFileName(this,"Parameter speichern","","Parameter (*.prm)");
+    if(name.isEmpty()) return;
+    l = FormatSettings(ca);
+    QFile   fi(name);
+    if(!fi.open(QIODevice::WriteOnly | QIODevice::Text)) return;
+    QTextStream st(&fi);
+    for(i=0; i<l; i++) st << ca[i];
+    fi.close();
     }
 
 void MainWindow::on_gotoollButton_clicked()
     {
-    m_grblport.Transmitt("G53 G0 Z0\nG53 G0 X0 Y0\n");
+    if(grblstate == "Alarm") return;
+    m_transfer.empty(); m_transfer.append("G53 G0 Z0\n");
+    m_transfer.append("G53 G0 X0 Y0\n"); StartTransfer();
     }
